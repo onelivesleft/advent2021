@@ -1,7 +1,7 @@
 #import "Basic";
 #import "Strings";
-#
-#load "utils.jai";
+#import "Time";
+#load "../utils.jai";
 
 main :: () {
     depths : [..] int;
@@ -19,16 +19,74 @@ main :: () {
         return triple.depth[0] + triple.depth[1] + triple.depth[2];
     }
 
-    increases := 0;
+    {
+        print("\nDummy:\n");
 
-    a := cast(*Triple)*depths[0];
-    for i: 1 .. depths.count - 3 {
-        b := cast(*Triple)*depths[i];
-        if sum(b) > sum(a)  increases += 1;
-        a = b;
+        increases := 0;
+
+        a := cast(*Triple)*depths[0];
+        for i: 1 .. depths.count - 3 {
+            b := cast(*Triple)*depths[i];
+            if sum(b) > sum(a)  increases += 1;
+            a = b;
+        }
+
+        print("%\n", increases);
     }
 
-    print("%\n", increases);
+    {
+        print("\nScalar:\n");
+
+        start_time := get_time();
+        increases := 0;
+
+        a := cast(*Triple)*depths[0];
+        for i: 1 .. depths.count - 3 {
+            b := cast(*Triple)*depths[i];
+            if sum(b) > sum(a)  increases += 1;
+            a = b;
+        }
+
+        delta := start_time - get_time();
+        print("% in %s\n", increases, formatFloat(delta, trailing_width=15));
+    }
+
+    {
+        print("\nSIMD:\n");
+
+        start_time := get_time();
+        increases := 0;
+
+        i := 0;
+        end := depths.count - 6;
+        while i < end {
+            defer i += 4;
+
+            a := *depths[i];
+            b := *depths[i + 3];
+
+            debug_break();
+            #asm AVX,AVX2 {
+                movdqu a_vec:, [a];
+                movdqu b_vec:, [b];
+                pcmpgtw result_vec:, b_vec, a_vec;
+                pmovmskb result_gpr:, result_vec;
+                popcnt result_gpr, result_gpr;
+                add increases, result_gpr;
+            }
+        }
+
+        increases /= 2;
+        i += 3;
+
+        while i < depths.count {
+            if depths[i] > depths[i - 3] increases += 1;
+            i += 1;
+        }
+
+        delta := start_time - get_time();
+        print("% in %s\n", increases, formatFloat(delta, trailing_width=15));
+    }
 }
 
 

@@ -1,6 +1,6 @@
 #import "Basic";
 #import "Strings";
-#load "utils.jai";
+#load "../utils.jai";
 
 main :: () {
     depths : [..] int;
