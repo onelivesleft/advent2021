@@ -15,8 +15,6 @@ main :: () {
 
     for line_split(data) {
         command, unit_string := split_into_two(it, #char " ");
-        assert(command != "");
-        assert(unit_string != "");
         units, ok := parse_int(unit_string);
         assert(ok);
 
