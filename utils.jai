@@ -6,3 +6,6 @@ parse_int :: (int_string: string) -> int, bool {
     i, ok := jai_string.parse_int(*s);
     return i, ok;
 }
+
+x :: true;
+_ :: false;
