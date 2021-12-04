@@ -5,6 +5,7 @@
 confirm_test :: x;  // x / _
 
 
+
 main :: () {
     #if confirm_test  data :: input;
     else              data :: dummy;

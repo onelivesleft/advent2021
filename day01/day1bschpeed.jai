@@ -65,7 +65,6 @@ main :: () {
             a := *depths[i];
             b := *depths[i + 3];
 
-            debug_break();
             #asm AVX,AVX2 {
                 movdqu a_vec:, [a];
                 movdqu b_vec:, [b];
