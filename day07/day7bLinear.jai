@@ -27,6 +27,7 @@ main :: () {
     fuel_cost_from_distance :: (distance: int) -> int {
         if distance == 0  return 0;
         if distance == 1  return 1;
+        return  fuel_cost_from_distance(distance - 1) + distance;
 
         cost, found := table_find(fuel_costs_from_distance, distance);
         if found  return cost;
