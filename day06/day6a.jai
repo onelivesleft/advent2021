@@ -44,7 +44,7 @@ main :: () {
                 /* check for zeroes: zero = birth */
                 pcmpeqb birth_vec:, fish_vec, zero_vec;
                 pmovmskb birth_gpr:, birth_vec;
-                popcnt births, birth_gpr;
+                popcnt births, birth_gpr; != 0
 
                 /* decrement */
                 psubb fish_vec, fish_vec, one_vec;
