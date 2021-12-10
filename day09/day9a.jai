@@ -19,7 +19,7 @@ main :: () {
     for line: line_split(data) {
         row := make_row();
         add_dummy(*row);
-        for char_split(line)
+        for split(line)
             array_add(*row, it - #char "0");
         add_dummy(*row);
         array_add(*heightmap, row);
