@@ -1,4 +1,5 @@
 #import "Basic";
+#import "Plot";
 #import "Strings";
 #load "../utils.jai";
 
@@ -140,13 +141,27 @@ main :: () {
         }
     }
 
-    paper = fold(paper, folds[0]);
-    for folds  paper = fold(paper, it);
-    draw(paper);
+    draw_paper :: (paper: Paper, index: int) {
+        for x: 0 .. paper.width
+            for y: 0 .. paper.height
+                if paper.dots[index_from_xy(x, y)]
+                    plot(x, y, rgb(index * 256 / 24, 255, index * 256 / 13));
+    }
+
+    plot_start(xx paper.width, xx paper.height);
+
+    draw_paper(paper, 0);
+    for folds {
+        wait_for_user();
+        paper = fold(paper, it);
+        draw_paper(paper, it_index + 1);
+    }
 
     total_dots := count_dots(paper);
 
     print("%\n", total_dots);
+
+    plot_done();
 }
 
 
