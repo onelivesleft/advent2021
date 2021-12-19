@@ -101,9 +101,11 @@ main :: () {
     }
 
 
-    for scanner_index: 0 .. scanners.count - 2 {
-        buffer_a := fill_rotated_buffer(rotated_buffer_a, scanners[scanner_index].beacons, 0);
-        for other_index: scanner_index + 1 .. scanners.count - 1 {
+    for scanner_index: 0 .. scanners.count - 1 {
+        buffer_a := fill_rotated_buffer(rotated_buffer_a, scanners[scanner_index].beacons, rotation_identity);
+        for other_index: 0 .. scanners.count - 1 {
+            if scanner_index == other_index  continue;
+
             for rotation: 0 .. 23 {
                 buffer_b := fill_rotated_buffer(rotated_buffer_b, scanners[other_index].beacons, rotation);
                 table_reset(*diffs);
@@ -113,8 +115,8 @@ main :: () {
                         value, found := table_find(diffs, diff.key);
                         if found {
                             if value == 11 {
+                                print("% -> %\na is %\nb is %\nd is %\n\n", scanner_index, other_index, a, b, diff);
                                 array_add(*offsets, offset(scanner_index, other_index, rotation, diff));
-                                scanners[other_index].rotation = rotation;
                                 break rotation;
                             }
                             table_set(*diffs, diff.key, value + 1);
@@ -126,6 +128,10 @@ main :: () {
         }
     }
 
+    for offsets  print("%\n", it);
+    //exit(0);
+
+    scanners[0].rotation = rotation_identity;
     scanners[0].found = true;
     searching := true;
     while searching {
@@ -133,11 +139,7 @@ main :: () {
             for offset: offsets {
                 if offset.to_index == scanner_to_find && scanners[offset.from_index].found {
                     scanners[scanner_to_find].position = scanners[offset.from_index].position + offset.delta;
-                    scanners[scanner_to_find].found = true;
-                    break;
-                }
-                if offset.from_index == scanner_to_find && scanners[offset.to_index].found {
-                    scanners[scanner_to_find].position = scanners[offset.to_index].position - offset.delta;
+                    scanners[scanner_to_find].rotation = offset.to_rotation;
                     scanners[scanner_to_find].found = true;
                     break;
                 }
@@ -151,8 +153,6 @@ main :: () {
         }
     }
 
-    for offsets  print("%\n", it);
-    //exit(0);
 
     scanners[0].position = position(0, 0, 0);
 
@@ -174,6 +174,8 @@ main :: () {
 }
 
 
+rotation_identity :: 14;
+
 rotate_beacon :: (dst: *Position, src: Position, rotation: int) {
     if rotation == {
         case  0;  dst.x = -src.x; dst.y = -src.y; dst.z = +src.z;
@@ -192,10 +194,10 @@ rotate_beacon :: (dst: *Position, src: Position, rotation: int) {
         case 13;  dst.x = +src.x; dst.y = -src.z; dst.z = +src.y;
         case 14;  dst.x = +src.x; dst.y = +src.y; dst.z = +src.z;
         case 15;  dst.x = +src.x; dst.y = +src.z; dst.z = -src.y;
-        case 16;  dst.x = +src.y; dst.y = +src.z; dst.z = +src.x;
-        case 17;  dst.x = +src.y; dst.y = -src.x; dst.z = +src.z;
-        case 18;  dst.x = +src.y; dst.y = -src.z; dst.z = -src.x;
-        case 19;  dst.x = +src.y; dst.y = +src.x; dst.z = -src.z;
+        case 16;  dst.x = +src.y; dst.y = -src.x; dst.z = +src.z;
+        case 17;  dst.x = +src.y; dst.y = -src.z; dst.z = -src.x;
+        case 18;  dst.x = +src.y; dst.y = +src.x; dst.z = -src.z;
+        case 19;  dst.x = +src.y; dst.y = +src.z; dst.z = +src.x;
         case 20;  dst.x = +src.z; dst.y = -src.x; dst.z = -src.y;
         case 21;  dst.x = +src.z; dst.y = -src.y; dst.z = +src.x;
         case 22;  dst.x = +src.z; dst.y = +src.x; dst.z = +src.y;
