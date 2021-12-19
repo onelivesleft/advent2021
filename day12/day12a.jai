@@ -75,7 +75,7 @@ test :: (data: string) -> int {
         assert(room_b.connections.count > 0);
     }
 
-    start_room := room_find(rooms, "start");
+    start_room := room_find(rooms, "start"); @Becomes_Invalid
     assert(start_room != null);
 
     walk :: (room: *Room, path_so_far: Path, results: *[..] Path) {
