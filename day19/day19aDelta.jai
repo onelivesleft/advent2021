@@ -1,5 +1,4 @@
 #import "Basic";
-#import "Hash_Table";
 #import "Sort";
 #import "Strings";
 #load "../utils.jai";
@@ -14,6 +13,7 @@ Position :: struct {
     key : u64;
 }
 
+
 position :: (x: int, y: int, z: int) -> Position {
     result : Position;
     result.x = xx x; result.y = xx y; result.z = xx z;
@@ -23,8 +23,6 @@ position :: (x: int, y: int, z: int) -> Position {
 Scanner :: struct {
     beacons : [..] Position;
     position : Position;
-    rotation : int;
-    found := false;
 }
 
 
@@ -32,26 +30,6 @@ scanners : [..] Scanner;
 
 delta_buffer_a : [..] Position;
 delta_buffer_b : [..] Position;
-
-diffs : Table(u64, int);
-
-Offset :: struct {
-    from_index : int;
-    to_index : int;
-    to_rotation : int;
-    delta : Position;
-}
-
-offset :: (from_index : int, to_index: int, to_rotation: int, delta: Position) -> Offset {
-    result : Offset = ---;
-    result.from_index = from_index;
-    result.to_index = to_index;
-    result.to_rotation = to_rotation;
-    result.delta = delta;
-    return result;
-}
-
-offsets : [..] Offset;
 
 
 main :: () {
@@ -96,77 +74,44 @@ main :: () {
 
         view : [] Position = buffer;
         view.count = beacons.count;
+        quick_sort(view, beacon => beacon.x * 1000000 + beacon.y * 1000 + beacon.z);
+
+        for < view.count - 1 .. 1
+            view[it] -= view[it - 1];
 
         return view;
     }
 
+    scanners[0].position = position(0, 0, 0);
+    buffer_a := fill_delta_buffer(delta_buffer_a, scanners[0].beacons, 0);
+    //print("%\n\n", buffer_a);
 
-    for scanner_index: 0 .. scanners.count - 2 {
-        buffer_a := fill_delta_buffer(delta_buffer_a, scanners[scanner_index].beacons, 0);
-        for other_index: scanner_index + 1 .. scanners.count - 1 {
-            for rotation: 0 .. 59 {
-                buffer_b := fill_delta_buffer(delta_buffer_b, scanners[other_index].beacons, rotation);
-                table_reset(*diffs);
-                for a: buffer_a {
-                    for b: buffer_b {
-                        diff := b - a;
-                        value, found := table_find(diffs, diff.key);
-                        if found {
-                            if value == 11 {
-                                array_add(*offsets, offset(scanner_index, other_index, rotation, diff));
-                                scanners[scanner_index].rotation = rotation;
-                                break a;
-                            }
-                            table_set(*diffs, diff.key, value + 1);
+    for scanner_index: 1 .. scanners.count - 1 {
+        for rotation: 0 .. 35 {
+            buffer_b := fill_delta_buffer(delta_buffer_b, scanners[scanner_index].beacons, rotation);
+            //print("%\n\n", buffer_b);
+            for offset: 0 .. buffer_b.count - 1 {
+                position_a := buffer_a[0];
+                position_b := buffer_b[0];
+                matches := 0;
+                for i: 1 .. buffer_a.count - 1 {
+                    index_b := (i + offset) % buffer_b.count;
+                    position_a += buffer_a[i];
+                    position_b += buffer_b[index_b];
+                    if buffer_a[i] == buffer_b[index_b] {
+                        matches += 1;
+                        if matches >= 12 {
+                            scanners[scanner_index].position = position_b - position_a;
+                            break rotation;
                         }
-                        else  table_set(*diffs, diff.key, 1);
                     }
                 }
             }
         }
     }
 
-    for offsets print("%\n", it);
-
-    scanners[0].found = true;
-    searching := true;
-    while searching {
-        for scanner_to_find: 1 .. scanners.count - 1 {
-            for offset: offsets {
-                if offset.from_index == scanner_to_find && scanners[offset.to_index].found {
-                    scanners[scanner_to_find].position = scanners[offset.to_index].position - offset.delta;
-                    scanners[scanner_to_find].found = true;
-                    break;
-                }
-                else if offset.to_index == scanner_to_find && scanners[offset.from_index].found {
-                    scanners[scanner_to_find].position = scanners[offset.from_index].position + offset.delta;
-                    scanners[scanner_to_find].found = true;
-                    break;
-                }
-            }
-        }
-
-        searching = false;
-        for scanners if !it.found {
-            searching = true;
-            break;
-        }
-    }
-
-    scanners[0].position = position(0, 0, 0);
-
-    all_beacons : Table(u64, bool);
-
-    for scanner, scanner_index: scanners {
-        buffer := fill_delta_buffer(delta_buffer_a, scanner.beacons, scanner.rotation);
-        for buffer {
-            beacon := it + scanner.position;
-            //print("%: %\n", scanner_index, beacon);
-            table_set(*all_beacons, beacon.key, true);
-        }
-    }
-
-    print("%\n", all_beacons.count);
+    for scanner: scanners
+        print("%\n", scanner.position);
 }
 
 
@@ -177,14 +122,13 @@ transpose_beacon :: (dst: *Position, src: Position, rotation: int) {
     if rotation & 2  dst.y = -dst.y;
     if rotation & 4  dst.z = -dst.z;
 
-    if rotation / 8 == {              // xyz
-        case 1; Swap(*dst.x, *dst.y); // yxz
-        case 2; Swap(*dst.x, *dst.z); // zyx
-        case 3; Swap(*dst.y, *dst.z); // xzy
-        case 4; Swap(*dst.x, *dst.y); Swap(*dst.y, *dst.z); // yzx
-        case 5; Swap(*dst.x, *dst.z); Swap(*dst.y, *dst.z); // zxy
+    if rotation / 8 == {
+        case 1; Swap(*dst.x, *dst.y);
+        case 2; Swap(*dst.x, *dst.z);
+        case 3; Swap(*dst.y, *dst.z);
     }
 }
+
 
 
 operator- :: (a: Position, b: Position) -> Position {
@@ -206,7 +150,6 @@ operator+ :: (a: Position, b: Position) -> Position {
 operator== :: (a: Position, b: Position) -> bool {
     return a.x == b.x && a.y == b.y && a.z == b.z;
 }
-
 
 
 dummy :: #string __data
