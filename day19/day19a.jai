@@ -30,8 +30,8 @@ Scanner :: struct {
 
 scanners : [..] Scanner;
 
-delta_buffer_a : [..] Position;
-delta_buffer_b : [..] Position;
+rotated_buffer_a : [..] Position;
+rotated_buffer_b : [..] Position;
 
 diffs : Table(u64, int);
 
@@ -86,13 +86,13 @@ main :: () {
     }
 
     for 1 .. max_beacon_count {
-        _ := array_add(*delta_buffer_a);
-        _ = array_add(*delta_buffer_b);
+        _ := array_add(*rotated_buffer_a);
+        _ = array_add(*rotated_buffer_b);
     }
 
-    fill_delta_buffer :: (buffer: [..] Position, beacons : [] Position, rotation: int) -> [] Position {
+    fill_rotated_buffer :: (buffer: [..] Position, beacons : [] Position, rotation: int) -> [] Position {
         for beacon, i: beacons
-            transpose_beacon(*buffer[i], beacon, rotation);
+            rotate_beacon(*buffer[i], beacon, rotation);
 
         view : [] Position = buffer;
         view.count = beacons.count;
@@ -102,10 +102,10 @@ main :: () {
 
 
     for scanner_index: 0 .. scanners.count - 2 {
-        buffer_a := fill_delta_buffer(delta_buffer_a, scanners[scanner_index].beacons, 0);
+        buffer_a := fill_rotated_buffer(rotated_buffer_a, scanners[scanner_index].beacons, 0);
         for other_index: scanner_index + 1 .. scanners.count - 1 {
-            for rotation: 0 .. 59 {
-                buffer_b := fill_delta_buffer(delta_buffer_b, scanners[other_index].beacons, rotation);
+            for rotation: 0 .. 23 {
+                buffer_b := fill_rotated_buffer(rotated_buffer_b, scanners[other_index].beacons, rotation);
                 table_reset(*diffs);
                 for a: buffer_a {
                     for b: buffer_b {
@@ -114,8 +114,8 @@ main :: () {
                         if found {
                             if value == 11 {
                                 array_add(*offsets, offset(scanner_index, other_index, rotation, diff));
-                                scanners[scanner_index].rotation = rotation;
-                                break a;
+                                scanners[other_index].rotation = rotation;
+                                break rotation;
                             }
                             table_set(*diffs, diff.key, value + 1);
                         }
@@ -126,20 +126,18 @@ main :: () {
         }
     }
 
-    for offsets print("%\n", it);
-
     scanners[0].found = true;
     searching := true;
     while searching {
         for scanner_to_find: 1 .. scanners.count - 1 {
             for offset: offsets {
-                if offset.from_index == scanner_to_find && scanners[offset.to_index].found {
-                    scanners[scanner_to_find].position = scanners[offset.to_index].position - offset.delta;
+                if offset.to_index == scanner_to_find && scanners[offset.from_index].found {
+                    scanners[scanner_to_find].position = scanners[offset.from_index].position + offset.delta;
                     scanners[scanner_to_find].found = true;
                     break;
                 }
-                else if offset.to_index == scanner_to_find && scanners[offset.from_index].found {
-                    scanners[scanner_to_find].position = scanners[offset.from_index].position + offset.delta;
+                if offset.from_index == scanner_to_find && scanners[offset.to_index].found {
+                    scanners[scanner_to_find].position = scanners[offset.to_index].position - offset.delta;
                     scanners[scanner_to_find].found = true;
                     break;
                 }
@@ -153,12 +151,15 @@ main :: () {
         }
     }
 
+    for offsets  print("%\n", it);
+    //exit(0);
+
     scanners[0].position = position(0, 0, 0);
 
     all_beacons : Table(u64, bool);
 
     for scanner, scanner_index: scanners {
-        buffer := fill_delta_buffer(delta_buffer_a, scanner.beacons, scanner.rotation);
+        buffer := fill_rotated_buffer(rotated_buffer_a, scanner.beacons, scanner.rotation);
         for buffer {
             beacon := it + scanner.position;
             //print("%: %\n", scanner_index, beacon);
@@ -166,23 +167,40 @@ main :: () {
         }
     }
 
+    for scanners  print("% %\n", it.position, it.rotation);
+
+
     print("%\n", all_beacons.count);
 }
 
 
-transpose_beacon :: (dst: *Position, src: Position, rotation: int) {
-    dst.key = src.key;
-
-    if rotation & 1  dst.x = -dst.x;
-    if rotation & 2  dst.y = -dst.y;
-    if rotation & 4  dst.z = -dst.z;
-
-    if rotation / 8 == {              // xyz
-        case 1; Swap(*dst.x, *dst.y); // yxz
-        case 2; Swap(*dst.x, *dst.z); // zyx
-        case 3; Swap(*dst.y, *dst.z); // xzy
-        case 4; Swap(*dst.x, *dst.y); Swap(*dst.y, *dst.z); // yzx
-        case 5; Swap(*dst.x, *dst.z); Swap(*dst.y, *dst.z); // zxy
+rotate_beacon :: (dst: *Position, src: Position, rotation: int) {
+    if rotation == {
+        case  0;  dst.x = -src.x; dst.y = -src.y; dst.z = +src.z;
+        case  1;  dst.x = -src.x; dst.y = -src.z; dst.z = -src.y;
+        case  2;  dst.x = -src.x; dst.y = +src.y; dst.z = -src.z;
+        case  3;  dst.x = -src.x; dst.y = +src.z; dst.z = +src.y;
+        case  4;  dst.x = -src.y; dst.y = -src.x; dst.z = -src.z;
+        case  5;  dst.x = -src.y; dst.y = -src.z; dst.z = +src.x;
+        case  6;  dst.x = -src.y; dst.y = +src.x; dst.z = +src.z;
+        case  7;  dst.x = -src.y; dst.y = +src.z; dst.z = -src.x;
+        case  8;  dst.x = -src.z; dst.y = -src.x; dst.z = +src.y;
+        case  9;  dst.x = -src.z; dst.y = -src.y; dst.z = -src.x;
+        case 10;  dst.x = -src.z; dst.y = +src.x; dst.z = -src.y;
+        case 11;  dst.x = -src.z; dst.y = +src.y; dst.z = +src.x;
+        case 12;  dst.x = +src.x; dst.y = -src.y; dst.z = -src.z;
+        case 13;  dst.x = +src.x; dst.y = -src.z; dst.z = +src.y;
+        case 14;  dst.x = +src.x; dst.y = +src.y; dst.z = +src.z;
+        case 15;  dst.x = +src.x; dst.y = +src.z; dst.z = -src.y;
+        case 16;  dst.x = +src.y; dst.y = +src.z; dst.z = +src.x;
+        case 17;  dst.x = +src.y; dst.y = -src.x; dst.z = +src.z;
+        case 18;  dst.x = +src.y; dst.y = -src.z; dst.z = -src.x;
+        case 19;  dst.x = +src.y; dst.y = +src.x; dst.z = -src.z;
+        case 20;  dst.x = +src.z; dst.y = -src.x; dst.z = -src.y;
+        case 21;  dst.x = +src.z; dst.y = -src.y; dst.z = +src.x;
+        case 22;  dst.x = +src.z; dst.y = +src.x; dst.z = +src.y;
+        case 23;  dst.x = +src.z; dst.y = +src.y; dst.z = -src.x;
+        case; assert(false);
     }
 }
 
