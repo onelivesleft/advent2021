@@ -109,13 +109,13 @@ main :: () {
             for rotation: 0 .. 23 {
                 buffer_b := fill_rotated_buffer(rotated_buffer_b, scanners[other_index].beacons, rotation);
                 table_reset(*diffs);
-                for a: buffer_a {
-                    for b: buffer_b {
-                        diff := b - a;
+                for beacon_a: buffer_a {
+                    for beacon_b: buffer_b {
+                        diff := beacon_b - beacon_a;
                         value, found := table_find(diffs, diff.key);
                         if found {
+                            print("% -> %\na is %\nb is %\nd is %\n\n", scanner_index, other_index, beacon_a, beacon_b, diff);
                             if value == 11 {
-                                print("% -> %\na is %\nb is %\nd is %\n\n", scanner_index, other_index, a, b, diff);
                                 array_add(*offsets, offset(scanner_index, other_index, rotation, diff));
                                 break rotation;
                             }
